@@ -1,0 +1,22 @@
+# Example Environment Variables for Local Development
+# Copy this to .dev.vars and fill in your actual values
+
+# JWT Secret (generate with: openssl rand -base64 32)
+JWT_SECRET=your-jwt-secret-here
+
+# Encryption Key (generate with: openssl rand -base64 32)
+ENCRYPTION_KEY=your-encryption-key-here
+
+# Microsoft OAuth Configuration
+MS_CLIENT_ID=your-ms-client-id
+MS_CLIENT_SECRET=your-ms-client-secret
+MS_REDIRECT_URI=http://localhost:8787/api/auth/ms/callback
+
+# WebAuthn Configuration
+RP_NAME=AstraPlan
+RP_ID=localhost
+
+# Optional: Shared AI Resources
+# SHARED_AI_API_KEY=your-shared-ai-key
+# SHARED_AI_BASE_URL=https://api.openai.com/v1
+# SHARED_AI_MODEL=gpt-4
