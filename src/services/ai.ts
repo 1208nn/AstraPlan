@@ -138,7 +138,7 @@ Respond ONLY with valid JSON.`;
       openai: 'https://api.openai.com/v1',
       google: 'https://generativelanguage.googleapis.com/v1beta',
       github: 'https://models.inference.ai.azure.com',
-      zju: 'https://ai.zju.edu.cn/v1'
+      zju: 'https://chat.zju.edu.cn/api/ai/v1'
     };
     return urls[provider] || '';
   }
@@ -148,7 +148,7 @@ Respond ONLY with valid JSON.`;
       openai: 'gpt-4',
       google: 'gemini-pro',
       github: 'gpt-4o',
-      zju: 'gpt-4',
+      zju: 'qwen3',
       cloudflare: '@cf/meta/llama-3.1-8b-instruct'
     };
     return models[provider] || 'gpt-4';
@@ -183,9 +183,13 @@ Respond ONLY with valid JSON.`;
   async analyzeImage(config: AIConfig, imageData: string, prompt: string): Promise<string> {
     if (config.provider === 'openai' || config.provider === 'github') {
       return await this.analyzeImageWithVision(config, imageData, prompt);
+    } else if (config.provider === 'google') {
+      return await this.analyzeImageWithGemini(config, imageData, prompt);
+    } else if (config.provider === 'cloudflare') {
+      return await this.analyzeImageWithCloudflare(config, imageData, prompt);
     }
     
-    return 'Image analysis not supported with current AI provider. Please use OpenAI or GitHub Models.';
+    return 'Image analysis not supported with current AI provider. Please use OpenAI, GitHub Models, Google Gemini, or Cloudflare.';
   }
 
   private async analyzeImageWithVision(config: AIConfig, imageData: string, prompt: string): Promise<string> {
@@ -219,5 +223,83 @@ Respond ONLY with valid JSON.`;
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content || '';
+  }
+
+  private async analyzeImageWithGemini(config: AIConfig, imageData: string, prompt: string): Promise<string> {
+    const baseUrl = config.baseUrl || this.getDefaultBaseUrl(config.provider);
+    const model = config.model || 'gemini-1.5-pro';
+    const apiKey = config.apiKey;
+
+    // Extract base64 data and mime type
+    const matches = imageData.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) {
+      throw new Error('Invalid image data format');
+    }
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+
+    const response = await fetch(`${baseUrl}/models/${model}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: base64Data
+                }
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  }
+
+  private async analyzeImageWithCloudflare(config: AIConfig, imageData: string, prompt: string): Promise<string> {
+    // Extract base64 data
+    const matches = imageData.match(/^data:[^;]+;base64,(.+)$/);
+    if (!matches) {
+      throw new Error('Invalid image data format');
+    }
+    const base64Data = matches[1];
+
+    // Convert base64 to array buffer
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${config.accountId}/ai/run/@cf/llava-hf/llava-1.5-7b-hf`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        image: Array.from(bytes)
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Cloudflare Vision API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.result?.description || data.result?.response || '';
   }
 }
