@@ -9,7 +9,7 @@
 	"dependencies": {
 		"@simplewebauthn/browser": "^13.2.2",
 		"@simplewebauthn/server": "^13.2.2",
-		"hono": "^4.10.1",
+		"hono": "^4.10.2",
 		"ics": "^3.8.1",
 		"uuid": "^13.0.0"
 	},
